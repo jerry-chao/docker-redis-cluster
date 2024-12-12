@@ -62,6 +62,12 @@ if [ "$1" = 'redis-cluster' ]; then
         IP=${IP} PORT=${port} BIND_ADDRESS=${BIND_ADDRESS} envsubst < /redis-conf/redis.tmpl > /redis-conf/${port}/redis.conf
       fi
 
+      if [ ! -z "$REDIS_PASSWORD" ]; then
+        echo " -- Setting Redis password"
+        echo "requirepass ${REDIS_PASSWORD}" >> /redis-conf/${port}/redis.conf
+        echo "masterauth ${REDIS_PASSWORD}" >> /redis-conf/${port}/redis.conf
+      fi
+
       if [ "$port" -lt $(($INITIAL_PORT + $MASTERS)) ]; then
         if [ "$SENTINEL" = "true" ]; then
           PORT=${port} SENTINEL_PORT=$((port - 2000)) envsubst < /redis-conf/sentinel.tmpl > /redis-conf/sentinel-${port}.conf
@@ -74,6 +80,7 @@ if [ "$1" = 'redis-cluster' ]; then
     bash /generate-supervisor-conf.sh $INITIAL_PORT $max_port > /etc/supervisor/supervisord.conf
 
     supervisord -c /etc/supervisor/supervisord.conf
+    cat /etc/supervisor/supervisord.conf
     sleep 3
 
     #
@@ -81,7 +88,12 @@ if [ "$1" = 'redis-cluster' ]; then
     ## If it is below 5.0 then we use the redis-trib.rb to build the cluster
     #
     echo "Using redis-cli to create the cluster ${nodes}"
-    redis-cli --cluster create --cluster-replicas $SLAVES_PER_MASTER $nodes --cluster-yes
+
+    if [ ! -z "$REDIS_PASSWORD" ]; then
+        redis-cli -a ${REDIS_PASSWORD} --cluster create --cluster-replicas $SLAVES_PER_MASTER $nodes --cluster-yes
+    else
+        redis-cli --cluster create --cluster-replicas $SLAVES_PER_MASTER $nodes --cluster-yes
+    fi
 
     if [ "$SENTINEL" = "true" ]; then
       for port in $(seq $INITIAL_PORT $(($INITIAL_PORT + $MASTERS))); do

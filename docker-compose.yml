@@ -1,14 +1,14 @@
-version: '2'
 services:
   redis-cluster:
     container_name: redis-cluster
-    image: 'redis-cluster:7.2.5'
+    image: 'zhangchaoyy/redis-cluster:7.2.5'
     environment:
      IP: ${REDIS_CLUSTER_IP}
-     SENTINEL: ${REDIS_USE_SENTINEL}
-     STANDALONE: ${REDIS_USE_STANDALONE}
     build:
       context: .
+      platforms:
+        - linux/amd64
+        - linux/arm64
       args:
         redis_version: '7.2.5'
     hostname: server

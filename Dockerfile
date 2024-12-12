@@ -1,7 +1,8 @@
 # Build based on redis:7.2.5 from "2024-05-22T23:17:59Z"
-FROM redis:7.2.5
+ARG redis_version=7.2.5
+FROM redis:${redis_version}
 
-LABEL maintainer="Johan Andersson <Grokzen@gmail.com>"
+LABEL maintainer="zhangchao <462283159@qq.com>"
 
 # Some Environment Variables
 ENV HOME /root
@@ -11,26 +12,12 @@ ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -yqq \
       net-tools supervisor ruby rubygems locales gettext-base wget gcc make g++ build-essential libc6-dev tcl && \
-    apt-get clean -yqq && apt-get install -y locales && \
-    localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8
+    localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8 && \
+    apt-get clean -yqq
 
 # # Ensure UTF-8 lang and locale
 ENV LANG       en_US.UTF-8
 ENV LC_ALL     en_US.UTF-8
-
-# Necessary for gem installs due to SHA1 being weak and old cert being revoked
-ENV SSL_CERT_FILE=/usr/local/etc/openssl/cert.pem
-
-RUN gem install redis -v 4.1.3
-
-# This will always build the latest release/commit in the 7.2 branch
-ARG redis_version=7.2
-
-RUN wget -qO redis.tar.gz https://github.com/redis/redis/tarball/${redis_version} \
-    && tar xfz redis.tar.gz -C / \
-    && mv /redis-* /redis
-
-RUN (cd /redis && make)
 
 RUN mkdir /redis-conf && mkdir /redis-data
 
@@ -45,8 +32,6 @@ COPY docker-entrypoint.sh /docker-entrypoint.sh
 COPY generate-supervisor-conf.sh /generate-supervisor-conf.sh
 
 RUN chmod 755 /docker-entrypoint.sh
-
-EXPOSE 7000 7001 7002 7003 7004 7005 7006 7007 5000 5001 5002
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["redis-cluster"]
