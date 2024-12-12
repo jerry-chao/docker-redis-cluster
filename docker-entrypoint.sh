@@ -56,10 +56,10 @@ if [ "$1" = 'redis-cluster' ]; then
       fi
 
       if [ "$port" -lt "$first_standalone" ]; then
-        PORT=${port} BIND_ADDRESS=${BIND_ADDRESS} envsubst < /redis-conf/redis-cluster.tmpl > /redis-conf/${port}/redis.conf
+        IP=${IP} PORT=${port} BIND_ADDRESS=${BIND_ADDRESS} envsubst < /redis-conf/redis-cluster.tmpl > /redis-conf/${port}/redis.conf
         nodes="$nodes $IP:$port"
       else
-        PORT=${port} BIND_ADDRESS=${BIND_ADDRESS} envsubst < /redis-conf/redis.tmpl > /redis-conf/${port}/redis.conf
+        IP=${IP} PORT=${port} BIND_ADDRESS=${BIND_ADDRESS} envsubst < /redis-conf/redis.tmpl > /redis-conf/${port}/redis.conf
       fi
 
       if [ "$port" -lt $(($INITIAL_PORT + $MASTERS)) ]; then
@@ -80,16 +80,8 @@ if [ "$1" = 'redis-cluster' ]; then
     ## Check the version of redis-cli and if we run on a redis server below 5.0
     ## If it is below 5.0 then we use the redis-trib.rb to build the cluster
     #
-    /redis/src/redis-cli --version | grep -E "redis-cli 3.0|redis-cli 3.2|redis-cli 4.0"
-
-    if [ $? -eq 0 ]
-    then
-      echo "Using old redis-trib.rb to create the cluster"
-      echo "yes" | eval ruby /redis/src/redis-trib.rb create --replicas "$SLAVES_PER_MASTER" "$nodes"
-    else
-      echo "Using redis-cli to create the cluster"
-      echo "yes" | eval /redis/src/redis-cli --cluster create --cluster-replicas "$SLAVES_PER_MASTER" "$nodes"
-    fi
+    echo "Using redis-cli to create the cluster ${nodes}"
+    redis-cli --cluster create --cluster-replicas $SLAVES_PER_MASTER $nodes --cluster-yes
 
     if [ "$SENTINEL" = "true" ]; then
       for port in $(seq $INITIAL_PORT $(($INITIAL_PORT + $MASTERS))); do
